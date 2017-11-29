@@ -1,6 +1,7 @@
 
 module Basics where
 import Data.List  
+import qualified Data.Map as Map  
 
 -- functions
 doubleMe x = x + x
@@ -248,6 +249,153 @@ sum2 xs = foldl (\acc x -> acc + x) 0 xs
 -- example: 
 -- import qualified Data.Map as Map 
 -- Map.fromList [("betty","555-2938"),("bonnie","452-2928")]
+
+-- Sets
+-- example
+-- import qualified Data.Set as Set  
+-- Set.fromList [1,2,3]
+
+-- data types
+-- 1 way (constructor function):
+data Point = Point Float Float deriving (Show)
+data Shape = Circle Point Float | Rectangle Point Point deriving (Show)  
+surface :: Shape -> Float  
+surface (Circle _ r) = pi * r ^ 2  
+surface (Rectangle (Point x1 y1) (Point x2 y2)) = (abs $ x2 - x1) * (abs $ y2 - y1)  
+-- example: surface (Rectangle (Point 0 0) (Point 100 100))  
+-- 2 way (record syntax):
+data Person = Person { firstName :: String  
+                     , lastName :: String  
+                     , age :: Int  
+                     } deriving (Show, Eq, Read)   
+-- example1: Person {firstName="Pavlo", lastName="Pohrebnyi", age=27}
+-- example2: Person "Pavlo" "Pohrebnyi" 27
+-- example3: (Person "Pavlo" "Pohrebnyi" 27) == (Person "Pavlo" "Pohrebnyi" 28) 
+-- example4: read "Person {firstName = "Pavlo", lastName = "Pohrebnyi", age = 27}" :: Person
+
+-- type parameters (a - type parameter)
+data Vector a = Vector a a a deriving (Show)  
+vplus :: (Num t) => Vector t -> Vector t -> Vector t  
+(Vector i j k) `vplus` (Vector l m n) = Vector (i+l) (j+m) (k+n) 
+
+-- deriving all reserved typeclasses
+data Day = Monday | Tuesday | Wednesday | Thursday | Friday | Saturday | Sunday   
+           deriving (Eq, Ord, Show, Read, Bounded, Enum)   
+
+-- type synonims
+type String' = [Char] 
+-- example1:
+type PhoneNumber = String  
+type Name = String  
+type PhoneBook = [(Name, PhoneNumber)]  
+inPhoneBook :: Name -> PhoneNumber -> PhoneBook -> Bool  
+inPhoneBook name pnumber pbook = (name, pnumber) `elem` pbook 
+data Either' a b = Left' a | Right' b deriving (Eq, Ord, Read, Show)  
+-- example2:
+data LockerState = Taken | Free deriving (Show, Eq)  
+type Code = String  
+type LockerMap = Map.Map Int (LockerState, Code)  
+lockerLookup :: Int -> LockerMap -> Either String Code  
+lockerLookup lockerNumber map =   
+    case Map.lookup lockerNumber map of   
+        Nothing -> Left $ "Locker number " ++ show lockerNumber ++ " doesn't exist!"  
+        Just (state, code) -> if state /= Taken   
+                                then Right code  
+                                else Left $ "Locker " ++ show lockerNumber ++ " is already taken!"  
+lockers :: Map.Map Int (LockerState, Code) 
+lockers = Map.fromList   
+    [(100,(Taken,"ZD39I"))  
+    ,(101,(Free,"JAH3I"))  
+    ,(103,(Free,"IQSA9"))  
+    ,(105,(Free,"QOTSA"))  
+    ,(109,(Taken,"893JJ"))  
+    ,(110,(Taken,"99292"))  
+    ] 
+-- lockerLookup 101 lockers
+-- example 4
+data List2 a = Empty2 | Cons2 {listHead :: a, listTail :: List2 a} 
+    deriving (Show, Read, Eq, Ord)
+-- 1 `Cons2` (2 `Cons2` Empty2)
+-- example 5
+data Tree a = EmptyTree | Node a (Tree a) (Tree a) deriving (Show, Read, Eq)
+
+singletonTree :: a -> Tree a  
+singletonTree x = Node x EmptyTree EmptyTree  
+
+treeInsert :: (Ord a) => a -> Tree a -> Tree a  
+treeInsert x EmptyTree = singletonTree x  
+treeInsert x (Node a left right)   
+    | x == a = Node x left right  
+    | x < a  = Node a (treeInsert x left) right  
+    | x > a  = Node a left (treeInsert x right) 
+-- foldr treeInsert EmptyTree [4,3,6,1,4,7,8]    
+
+treeElem :: (Ord a) => a -> Tree a -> Bool  
+treeElem x EmptyTree = False  
+treeElem x (Node a left right)  
+    | x == a = True  
+    | x < a  = treeElem x left  
+    | x > a  = treeElem x right  
+
+-- typeclasses 2
+-- example 1
+data TrafficLight = Red | Yellow | Green  
+-- we use instanse to make our TrafficLight type an instance of Eq typeclass
+-- class Eq a where  
+--     (==) :: a -> a -> Bool  
+--     (/=) :: a -> a -> Bool  
+--     x == y = not (x /= y)  
+--     x /= y = not (x == y)  
+instance Eq TrafficLight where  
+    Red == Red = True  
+    Green == Green = True  
+    Yellow == Yellow = True  
+    _ == _ = False  
+instance Show TrafficLight where  
+    show Red = "Red light"  
+    show Yellow = "Yellow light"  
+    show Green = "Green light"  
+-- instance (Eq m) => Eq (Maybe m) where  
+--     Just x == Just y = x == y  
+--     Nothing == Nothing = True  
+--     _ == _ = False  
+-- example 2
+class YesNo a where  
+    yesno :: a -> Bool
+instance YesNo Int where  
+    yesno 0 = False  
+    yesno _ = True 
+instance YesNo [a] where  
+    yesno [] = False  
+    yesno _ = True 
+instance YesNo Bool where  
+    yesno = id  -- id: std identity function a -> a
+instance YesNo (Maybe a) where  
+    yesno (Just _) = True  
+    yesno Nothing = False
+instance YesNo (Tree a) where  
+    yesno EmptyTree = False  
+    yesno _ = True  
+instance YesNo TrafficLight where  
+    yesno Red = False  
+    yesno _ = True
+yesnoIf :: (YesNo y) => y -> a -> a -> a  
+yesnoIf yesnoVal yesResult noResult = if yesno yesnoVal then yesResult else noResult  
+-- yesnoIf [2,3,4] "YEAH!" "NO!" 
+
+-- functors
+-- insight:
+-- class Functor f where  
+--     fmap :: (a -> b) -> f a -> f b 
+-- instance Functor Maybe where  
+--     fmap f (Just x) = Just (f x)  
+--     fmap f Nothing = Nothing  
+-- example 1:
+-- fmap (++ " HEY GUYS IM INSIDE THE JUST") (Just "Something serious.")  
+-- example 2:
+instance Functor Tree where  
+    fmap f EmptyTree = EmptyTree  
+    fmap f (Node x leftsub rightsub) = Node (f x) (fmap f leftsub) (fmap f rightsub) 
 
 
 
